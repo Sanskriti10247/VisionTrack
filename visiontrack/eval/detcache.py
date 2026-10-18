@@ -18,6 +18,7 @@ from pathlib import Path
 import numpy as np
 
 from visiontrack.config import DetectorConfig
+from visiontrack.detection.base import Detector
 from visiontrack.eval.hardware import hardware_info
 from visiontrack.eval.mot17 import SeqInfo
 from visiontrack.eval.perturb import PERTURBATIONS
@@ -55,6 +56,7 @@ def build_cache(
     perturbation: str | None = None,
     batch_size: int = 4,
     force: bool = False,
+    detector: Detector | None = None,
 ) -> Path:
     """Runs the detector over every frame of ``seqs`` and stores one .npz per sequence."""
     from visiontrack.detection import build_detector
@@ -64,36 +66,34 @@ def build_cache(
     if not todo:
         return out_dir
     det_cfg = cfg.model_copy(update={"conf_threshold": CACHE_CONF, "batch_size": batch_size})
-    detector = build_detector(det_cfg)
+    if detector is None:
+        detector = build_detector(det_cfg)
     warm_ms = detector.warmup(shape=(todo[0].height, todo[0].width))
     perturb = PERTURBATIONS[perturbation] if perturbation else None
     per_frame_ms: list[float] = []
+    capped = 0  # frames where max_det truncated the low-score tail
 
     for seq in todo:
         t_seq = time.perf_counter()
-        boxes, scores, classes, counts = [], [], [], []
-        batch, idxs = [], []
-
-        def flush() -> None:
-            t0 = time.perf_counter()
-            res = detector.detect_batch(batch)
-            per_frame_ms.extend([(time.perf_counter() - t0) * 1000 / len(batch)] * len(batch))
-            for d in res:
-                boxes.append(d.xyxy)
-                scores.append(d.confidence)
-                classes.append(d.class_id)
-                counts.append(len(d))
-            batch.clear()
-            idxs.clear()
-
-        for frame in VideoSource(seq.img_dir):
-            img = perturb(frame.image, frame.index) if perturb else frame.image
-            batch.append(img)
-            idxs.append(frame.index)
-            if len(batch) == batch_size:
-                flush()
-        if batch:
-            flush()
+        results: list[Detections] = []
+        batch: list[np.ndarray] = []
+        frames = iter(VideoSource(seq.img_dir))
+        while True:
+            frame = next(frames, None)
+            if frame is not None:
+                batch.append(perturb(frame.image, frame.index) if perturb else frame.image)
+            if batch and (len(batch) == batch_size or frame is None):
+                t0 = time.perf_counter()
+                results.extend(detector.detect_batch(batch))
+                per_frame_ms.extend([(time.perf_counter() - t0) * 1000 / len(batch)] * len(batch))
+                batch = []
+            if frame is None:
+                break
+        boxes = [d.xyxy for d in results]
+        scores = [d.confidence for d in results]
+        classes = [d.class_id for d in results]
+        counts = [len(d) for d in results]
+        capped += sum(1 for n in counts if n >= det_cfg.max_det)
         if len(counts) != seq.length:
             raise RuntimeError(f"{seq.name}: expected {seq.length} frames, detected {len(counts)}")
         np.savez_compressed(
@@ -115,6 +115,7 @@ def build_cache(
             "batch_size": batch_size,
             "warmup_ms": round(warm_ms, 1),
             "detector_ms_per_frame": summarize(per_frame_ms),
+            "frames_at_max_det": capped,
             "hardware": hardware_info(),
             "sequences": sorted({*meta.get("sequences", []), *(s.name for s in todo)}),
         }
