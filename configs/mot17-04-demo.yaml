@@ -1,0 +1,17 @@
+# Demo config for MOT17-04 (static elevated camera over a pedestrian street, 1920x1080 @ 30 FPS).
+detector:
+  weights: yolo11s.pt
+  imgsz: 1280
+  conf_threshold: 0.1
+  classes: [0]            # people only: MOT17 annotates pedestrians
+tracker:
+  type: bytetrack
+analytics:
+  normalized_coordinates: true
+  lines:
+    - name: crossing
+      p1: [0.05, 0.62]
+      p2: [0.95, 0.62]
+  zones:
+    - name: plaza
+      polygon: [[0.35, 0.35], [0.70, 0.35], [0.75, 0.75], [0.30, 0.75]]
