@@ -1,0 +1,25 @@
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+build/
+dist/
+
+# data, weights and run outputs (large / regenerable)
+data/
+models/
+runs/
+outputs/
+*.pt
+*.onnx
+*.engine
+!tests/fixtures/**
+
+# editors / os
+.vscode/
+.idea/
+.DS_Store

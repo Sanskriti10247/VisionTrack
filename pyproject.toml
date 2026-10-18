@@ -1,0 +1,64 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "visiontrack"
+version = "0.1.0"
+description = "Real-time object detection, multi-object tracking and video analytics with reproducible evaluation and edge inference benchmarks."
+readme = "README.md"
+requires-python = ">=3.10,<3.13"
+license = { text = "MIT" }
+dependencies = [
+    "numpy>=1.26,<2.3",
+    "opencv-python>=4.9",
+    "scipy>=1.11",
+    "pydantic>=2.5",
+    "pyyaml>=6.0",
+    "psutil>=5.9",
+    "ultralytics>=8.3.0,<8.4",
+]
+
+[project.optional-dependencies]
+onnx = [
+    "onnx>=1.16",
+    "onnxruntime>=1.18",
+    "onnxslim>=0.1.31",
+]
+api = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "python-multipart>=0.0.9",
+]
+eval = [
+    "pycocotools>=2.0.7",
+    "trackeval @ git+https://github.com/JonathonLuiten/TrackEval.git@12c8791b303e0a0b50f753af204249e622d0281a",
+    "matplotlib>=3.8",
+    "lap>=0.5.12",
+]
+dev = [
+    "pytest>=8.0",
+    "httpx>=0.27",
+    "ruff>=0.4",
+]
+
+[project.scripts]
+visiontrack = "visiontrack.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["visiontrack*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+markers = [
+    "slow: needs model weights or datasets (deselect with -m 'not slow')",
+]
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E501", "B008"]
