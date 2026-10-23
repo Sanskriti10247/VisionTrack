@@ -1,0 +1,37 @@
+# CPU container for the CLI, usage in docs/deployment.md
+
+services:
+  visiontrack:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    image: visiontrack:cpu
+    command: ["--help"]
+    # host uid so files in ./outputs are owned by you
+    user: "${VT_UID:-1000}:${VT_GID:-1000}"
+    environment:
+      OMP_NUM_THREADS: "${VT_THREADS:-4}"
+      YOLO_CONFIG_DIR: /tmp
+      YOLO_OFFLINE: "true"
+    volumes:
+      - ./models:/app/models:ro
+      - ./data:/app/data:ro
+      - ./outputs:/app/outputs
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m
+      - /app/runs:size=64m,mode=1777   # ultralytics insists on creating runs/
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    deploy:
+      resources:
+        limits:
+          cpus: "${VT_CPUS:-4}"
+          memory: "${VT_MEMORY:-3g}"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import visiontrack.pipeline, onnxruntime, cv2"]
+      interval: 30s
+      timeout: 20s
+      start_period: 20s
+      retries: 3

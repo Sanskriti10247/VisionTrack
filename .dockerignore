@@ -1,0 +1,33 @@
+# build only needs pyproject.toml, README.md, visiontrack/ and configs/
+.git
+.gitignore
+.venv
+**/__pycache__
+**/*.py[cod]
+*.egg-info
+.pytest_cache
+.ruff_cache
+.mypy_cache
+build
+dist
+
+# data, weights and outputs are mounted at runtime
+data
+models
+runs
+outputs
+reports
+*.pt
+*.onnx
+*.engine
+*.zip
+
+tests
+scripts
+docs
+frontend
+docker
+docker-compose.yml
+.vscode
+.idea
+.DS_Store
